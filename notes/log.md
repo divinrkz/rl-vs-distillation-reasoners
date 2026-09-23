@@ -2,8 +2,7 @@
 
 ## Step 1 — smoke test + format diff
 
-Scaffolded `src/rl_distill/` (formats, generate, grading, parsing, runio) and
-`scripts/01_smoke.py`. Formats are declarative in `configs/smoke.yaml`.
+Scaffolded `src/rl_distill/` (formats, generate, grading, parsing, runio) and `scripts/01_smoke.py`. Formats are declarative in `configs/smoke.yaml`.
 
 **To run on the GPU box:**
 
@@ -16,45 +15,27 @@ Writes `experiments/smoke/{orz,openthinker}/results.json` + a config copy.
 
 **Must verify by eye before Step 2 (formats are the #1 silent-failure risk):**
 
-- ORZ prompt template and whether it actually emits `<think>`/`<answer>` tags.
-  The default in `smoke.yaml` seeds `Assistant: <think>` — confirm against the
-  ORZ model card. If ORZ uses a different template, edit `formats.orz`.
-- OpenThinker: does it emit `<think>`/`</think>`, or the OpenThoughts
-  `<|begin_of_thought|>` markers? If the latter, edit `formats.openthinker`
-  think tags. Confirm whether its chat template already injects a reasoning
-  system prompt (then `system_prompt: null` is correct).
+- ORZ prompt template and whether it actually emits `<think>`/`<answer>` tags. The default in `smoke.yaml` seeds `Assistant: <think>` — confirm against the ORZ model card. If ORZ uses a different template, edit `formats.orz`.
+- OpenThinker: does it emit `<think>`/`</think>`, or the OpenThoughts `<|begin_of_thought|>` markers? If the latter, edit `formats.openthinker` think tags. Confirm whether its chat template already injects a reasoning system prompt (then `system_prompt: null` is correct).
 - `extract_thinking` / `extract_answer` output on both models looks sane.
+
+
 
 ### Step 1 eye-diff findings (first smoke run)
 
 Two silent bugs caught, both fixed:
 
-1. **Grader false negatives.** Both models answered the polar-coordinates
-   problem correctly (`(3, \pi/2)`) but were marked wrong. Cause: math-verify
-   was given bare, undelimited LaTeX and failed to verify the tuple. Fixed in
-   `grading.py` (`_as_latex` wraps bare answers; grade from the completion so
-   math-verify extracts `\boxed{}` itself). Verify with
-   `python scripts/check_grader.py` (CPU-only).
-2. **OpenThinker tag mismatch.** OpenThinker uses
-   `<|begin_of_thought|>/<|end_of_thought|>` + `<|begin_of_solution|>/
-   <|end_of_solution|>`, NOT `<think>`. The wrong tags made `extract_thinking`
-   return the whole completion (solution + boxed answer included). Fixed
-   `formats.openthinker` in `smoke.yaml`. ORZ (`<think>`/`<answer>`) parsed
-   correctly and is unchanged.
+**Grader false negatives.** Both models answered the polar-coordinates problem correctly (`(3, \pi/2)`) but were marked wrong. Cause: math-verify was given bare, undelimited LaTeX and failed to verify the tuple. Fixed in  
+ `grading.py` (`_as_latex` wraps bare answers; grade from the completion so math-verify extracts `\boxed{}` itself). Verify with`python scripts/check_grader.py` (CPU-only).
 
-Behavioral note for the write-up: ORZ's CoT is short, formal, linear;
-OpenThinker's is longer and chattier with explicit self-checks ("Wait, let me
-double-check", "just to be thorough"). Category-profile difference looks real
-even at n=1 — the thing Exp 1 is meant to quantify.
+1. **OpenThinker tag mismatch.** OpenThinker uses
+  `<|begin_of_thought|>/<|end_of_thought|>` + `<|begin_of_solution|>/  <|end_of_solution|>`, NOT `<think>`. The wrong tags made `extract_thinking` return the whole completion (solution + boxed answer included). Fixed  `formats.openthinker` in `smoke.yaml`. ORZ (`<think>`/`<answer>`) parsed correctly and is unchanged.
+
+Behavioral note for the write-up: ORZ's CoT is short, formal, linear; OpenThinker's is longer and chattier with explicit self-checks ("Wait, let me double-check", "just to be thorough"). Category-profile difference looks real even at n=1 — the thing Exp 1 is meant to quantify.
 
 ## Step 2 — sentence splitting, both formats
 
-`src/rl_distill/sentences.py` adapts thought-anchors `string_to_sentences` /
-`process_text_segment` / `clean_python_string_literal` (pkld cache + paragraph /
-token-range helpers dropped). `split_cot(text, fmt)` isolates the reasoning
-region via the format adapter first, so the splitter needs no per-format logic —
-both `<think>` (ORZ) and `<|begin_of_thought|>` (OpenThinker) work through the
-same path. Local test confirms no answer/solution leakage into sentences.
+`src/rl_distill/sentences.py` adapts thought-anchors `string_to_sentences` / `process_text_segment` / `clean_python_string_literal` (pkld cache + paragraph / token-range helpers dropped). `split_cot(text, fmt)` isolates the reasoning region via the format adapter first, so the splitter needs no per-format logic — both `<think>` (ORZ) and `<|begin_of_thought|>` (OpenThinker) work through the same path. Local test confirms no answer/solution leakage into sentences.
 
 **Verify on the box (CPU):** `python scripts/02_split_check.py configs/smoke.yaml`
 Eyeball: sentence boundaries sensible, no `\boxed`/solution text in either
@@ -64,7 +45,7 @@ Bug found + fixed: decimals were split mid-number (`0.125` -> `0.` + `125`,
 `1.64493` -> `1.` + `64493`) because the splitter treats period-before-digit as
 a boundary. Added decimal protection (`(?<=\d)\.(?=\d)` -> placeholder) in
 `process_text_segment`, mirroring the abbreviation protection. Genuine
-boundaries (`. ` + digit, with space) still split.
+boundaries (`.`  + digit, with space) still split.
 
 Not bugs: standalone display equations become one-line sentences (fine); OpenThinker
 reasoning legitimately contains `\boxed{}` (final-answer reasoning inside the
@@ -89,10 +70,12 @@ refinement deferred to the full run (needs an embedding model). All pure-Python
 logic unit-checked locally (prefix reconstruction exact for both formats).
 
 **Two-phase run (GPU), one model per process:**
+
 ```
 python scripts/03a_exp1_generate.py configs/exp1.yaml   # target -> generation.json
 python scripts/03b_exp1_label.py    configs/exp1.yaml   # labeler -> result.json
 ```
+
 Watch: (1) base_correct=True (else importance is on a wrong trace); (2) wall-clock
 of the resample step — extrapolate to ~10 problems x both models; (3) labeler
 returns valid JSON (labeler_raw + low "unknown" count); (4) importance not all zero
@@ -143,11 +126,13 @@ Config `steer.yaml`: categories backtracking + uncertainty-estimation, layers
 12-18, coeffs [0,4,8], eval indices 20-24.
 
 **Run (GPU):**
+
 ```
 python scripts/04a_gen_traces.py        configs/steer.yaml
 python scripts/04b_label_traces.py      configs/steer.yaml
 python scripts/04c_extract_and_steer.py configs/steer.yaml
 ```
+
 Gates: (1) 04b backtracking + uncertainty token counts > 0 (need enough to
 extract); (2) 04c vector norms non-zero; (3) eyeball control_outputs.json —
 does coeff 4/8 make OpenThinker backtrack/hedge MORE than coeff 0, while staying
@@ -233,7 +218,10 @@ expanded incrementally.
 
 ### Figure 1 result (7 problems each, thresholded |imp|>0.2, mean+/-std)
 
-              ORZ(RL)        OpenThinker(distilled)
+```
+          ORZ(RL)        OpenThinker(distilled)
+```
+
 initializing  0.262+/-0.370  0.067
 deduction     0.059          0.427+/-0.386
 adding-know   0.184          0.111
@@ -255,6 +243,7 @@ profiles that sum to 1.
 EXPERIMENTS COMPLETE. Both figures' data in hand.
 
 ## Write-up (remaining)
+
 Fig 1 (category profiles, ORZ vs OpenThinker), Fig 2 (steering curves: OT
 within-model, OT->ORZ transfer, random control). State: fidelity rejected
 (Exp 2), category divergence (Exp 1 + ORZ's zero backtracking/uncertainty),

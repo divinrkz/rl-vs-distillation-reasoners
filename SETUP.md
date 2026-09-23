@@ -38,7 +38,7 @@ GPU off until this finishes.
 
 If either model or the dataset is gated, set a token first:
 ```bash
-
+export HF_TOKEN=hf_...
 ```
 
 ## 4. Switch to the L40S and run the smoke test
@@ -65,3 +65,4 @@ persist on Studio storage regardless of machine type.
 - The Qwen2.5-32B labeler (Steps 3+) needs more than 48GB in bf16 — plan to run
   it AWQ/GPTQ-quantized on the L40S, or on an 80GB card. Deferred until then.
 - To pull local edits onto the box later: `git pull` in the Studio.
+
