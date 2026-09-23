@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(mkdir -p src/rl_distill/steering configs notes)",
-      "Bash(touch src/rl_distill/__init__.py src/rl_distill/steering/__init__.py)"
-    ]
-  }
-}
