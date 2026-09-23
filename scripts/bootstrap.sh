@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# One-time setup on a fresh Lightning Studio (or any CUDA box).
 set -euo pipefail
 
 # Persist HuggingFace downloads to Studio storage so a GPU restart doesn't
