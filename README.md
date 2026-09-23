@@ -1,9 +1,9 @@
 # RL vs. Distilled Reasoners
 
-**Write-up:** [Read the blog here](https://www.divinrkz.com/blog/rl-vs-distillation-reasoners)
-
 Do the reasoning mechanisms found in distilled reasoning models also hold in
 models that learned to reason through RL?
+
+[Read the blog here.](https://www.divinrkz.com/blog/research/rl-vs-distillation-reasoners)
 
 Most interpretability results on reasoning models (Thought Anchors, reasoning
 steering vectors) were measured on R1 distills. This repo checks two of them
